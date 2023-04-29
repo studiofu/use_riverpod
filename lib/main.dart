@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:use_riverpod/home2.dart';
 import 'package:use_riverpod/user.dart';
 
 import 'home1.dart';
+import 'package:http/http.dart' as http;
 
 // create provider
 final countProvider = Provider<int>(
@@ -31,8 +34,48 @@ final nameStateProvider = StateProvider<String?>((ref) => 'State Name');
 
 final userProvider =
     StateNotifierProvider<UserNotifier, User>((ref) => UserNotifier(
-          const User(name: '', age: 0, gender: 'M'),
+          const User(name: '', gender: 'M'),
         ));
+
+// another type, change notifier provider
+// migrated from Provider user
+
+// FutureProvider
+final fetchUserProvider = FutureProvider((ref) {
+  const url = 'https://jsonplaceholder.typicode.com/users/1';
+  // http.get return future of repsonse,
+  // after then , return future of User
+  return http.get(Uri.parse(url)).then((value) => User.fromJson(value.body));
+});
+
+// create a refence to UserRepository
+final UserRepositoryProvider = Provider((ref) => UserRepository());
+
+// create ref to UserRepository and use it to get the future value
+// provider links to another provider.
+final fetchUserProvider2 = FutureProvider((ref) {
+  final userRepository = ref.watch(UserRepositoryProvider);
+  return userRepository.fetchUserData();
+});
+
+// family usage, to pass one argument ...
+var a = Provider.family((ref, arg) => null);
+var b = Provider.family.autoDispose((ref, arg) => null);
+
+// test stream provider
+final streamProvider = StreamProvider(
+  (ref) async* {
+    // produce stream of data
+    sleep(Duration(seconds: 2));
+    yield [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    sleep(Duration(seconds: 2));
+    yield 123;
+    sleep(Duration(seconds: 2));
+    yield 111;
+  },
+);
+
+// provider observe
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -84,6 +127,8 @@ class _MyWidgetState extends State<MyWidget> {
 
         final name = ref.watch(nameStateProvider) ?? '';
 
+        final futureUser = ref.watch(fetchUserProvider2);
+
         return Column(
           children: [
             Center(
@@ -104,12 +149,39 @@ class _MyWidgetState extends State<MyWidget> {
               ),
             ),
             Center(
-              child: Text(updatedname),
-            ),
-            Center(
-              child: Text(user.age.toString()),
+              child: Text(updatedname!),
             ),
             UserWidget(),
+
+            // access to future provider value
+            futureUser.when(
+              data: (data) {
+                return Text(data.name!);
+              },
+              error: (error, stackTrace) {
+                print(error);
+                return CircularProgressIndicator();
+              },
+              loading: () {
+                return CircularProgressIndicator();
+              },
+            ),
+
+            ref.watch(streamProvider).when(
+              data: (data) {
+                //data
+                return Text(data.toString());
+              },
+              error: (error, stackTrace) {
+                print(error);
+                //error
+                return CircularProgressIndicator();
+              },
+              loading: () {
+                //loading
+                return CircularProgressIndicator();
+              },
+            )
           ],
         );
       }),
