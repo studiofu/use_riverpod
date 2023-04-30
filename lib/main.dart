@@ -75,10 +75,14 @@ final streamProvider = StreamProvider(
   },
 );
 
-// provider observe
+// provider observe, please refer to logger_riverpod.dart
+// add to the observers in ProviderScope
 
 void main() {
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(const ProviderScope(
+    child: MyApp(),
+    observers: [],
+  ));
 }
 
 class MyApp extends StatelessWidget {
